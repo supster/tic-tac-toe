@@ -1,0 +1,250 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+  "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+	<head>
+	<title>Tic Tac Toe</title>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+	<style type="text/css">
+		.tblBoard {
+			background-color: #FFCCCC;
+			border-spacing: 0;
+		}
+
+		.tblBoard td {
+			border: 1px dashed black;
+			width: 80px;
+			height: 80px;
+			font-size: xx-large;
+			padding: 10px 10px 10px 10px;
+			text-align: center;
+		}
+
+		.tblBoard td:hover {
+			background-color: red;
+			cursor: pointer;
+		}
+
+	</style>
+
+	<script type="text/javascript">
+		WINNING = 	[[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]];
+		/*********** Board ***************/
+		function Board() {
+			/* Board contains matrix with 9 squares */
+			this.matrix = new Array(9);
+			for (i=0; i<9; i++){
+				this.matrix[i] = "";
+			}
+
+		}
+
+		Board.prototype = 
+		{	
+			mark: function(square, player){
+				if(this.matrix[square] === "") {
+					this.matrix[square] = player;
+				}else{
+					alert("The box is already checked.");
+				}
+			},
+
+			clear: function(){
+				for (i=0; i<9; i++){
+					this.matrix[i] = "";
+				}
+			},
+
+			availableMoves: function () {
+				var a = [];
+				for (i=0; i < this.matrix.length; i++) {
+					if(this.matrix[i] === "") {
+						a.push(i);
+					} 
+				};
+				return a;
+			},
+
+			gameFinished: function(){
+				var st = this.gameState();
+				if(st !== 99){
+					return true;
+				} else {
+					return false;	
+				} 
+			},
+
+			checkWinning: function(player){
+				for(i=0;i<WINNING.length;i++){
+					tMatch = false;
+					for(j=0;j<WINNING[i].length;j++){
+						if(this.matrix[WINNING[i][j]] == player){
+							tMatch = true;
+						}else{
+							tMatch = false;
+							break;
+						}
+					}
+					if(tMatch) return true;
+				}
+				return false;
+			},
+
+			gameState: function(player) {
+				/*  -1: lose 
+					O:  draw 
+					1: 	win
+					99: in progress */
+				if(player == "O" || player == "") {
+					opponent = "X";
+				} else {
+					opponent = "O";
+				}
+
+				if (this.checkWinning(player)) {
+					return 1; 
+				} else if (this.checkWinning(opponent)) {
+					return -1;
+				}
+				if (this.availableMoves().length == 0){ return 0 }else{ return 99 }
+			},
+			
+			bestMove: function(player){
+				
+				var aBoards;
+				var min = 100;
+				var childScore;
+				var state;
+				
+				var gameState = this.gameState(player);
+				if(gameState !== 99){
+					//leaf node
+					return [gameState, this];
+				} else {
+					aBoards = this.getChildBoardList(player);
+					
+					for(var i = 0; i<aBoards.length;i++){
+						childScore = aBoards[i].bestMove(Player.opponentSymbol(player));
+						
+						if(childScore[0] < min) {
+							min = childScore[0];
+							state = aBoards[i];
+						}
+					}
+					
+					return[-min, state];
+				}
+				
+			},
+			
+			copy: function(){
+				var b = new Board();
+				b.matrix = this.matrix.slice();				
+				return b;
+			},
+			
+			getChildBoardList: function(player) {
+				var a = this.availableMoves();
+				var childList = [];
+				for(var i=0; i<a.length;i++) {
+					var b = this.copy();
+					if(b.matrix[a[i]] === "") b.matrix[a[i]] = player;
+					childList.push(b);
+				}
+				return childList;
+			}
+		}
+
+
+		/*********** Player ***************/
+		function Player(type, symbol) {
+			this.type = type; // human or computer
+			this.symbol = symbol; // X or O
+			
+			
+		}
+
+		Player.opponentSymbol = function(symbol) {
+			return {"X": "O", "O": "X"}[symbol];			
+		}
+
+		Player.prototype.pickMove = function(player, oBoard) {
+			//Get available moves, then random for an array index
+			/*a = oBoard.availableMoves();
+			if(a.length > 0){
+				//random number between 0 and length of array
+				x = Math.floor(Math.random() * a.length);
+				oBoard.mark(a[x], player);
+			}*/
+			
+			aMove = oBoard.bestMove(player);
+			oBoard.matrix = aMove[1].matrix;
+			drawBoard(oBoard);
+			
+			
+		}
+		
+		var oBoard = new Board();
+		var oPlayer = new Player("human", "X");
+		var oComputer = new Player("computer", "O");
+
+		function clearBoard(){
+			oBoard.clear();
+			$("td").text("");
+		}
+
+		function drawBoard(board) {
+			var aMatrix = board.matrix;
+			for(var i=0; i<aMatrix.length;i++){
+				$("#" + i).text(aMatrix[i]);
+			}
+		}
+
+
+		$(function() {
+
+			//click event handler
+			$("td").click(function(){
+
+				if(!oBoard.gameFinished()){
+					if(this.innerText != ""){
+						alert("The box is already checked.");
+					}else{
+						//Human click
+						oBoard.mark(this.id, oPlayer.symbol);
+						drawBoard(oBoard);
+
+						var gameState = oBoard.gameState(oPlayer.symbol);
+
+						if(gameState == 1){
+							alert("You won!");
+						} else if(gameState == 0) {
+							alert("It's a draw.");
+						} else {
+							//decision for computer
+							oComputer.pickMove(oComputer.symbol, oBoard); //Computer random play
+							//drawBoard(oBoard);
+
+							if(oBoard.gameState(oComputer.symbol) == 1){
+								alert("You lost!");
+							}			
+						}
+					}
+				}else{
+					alert("Please clear game.")
+				}
+
+			})
+		})
+
+	</script>
+	</head>
+	<body>
+	<h1>Tic Tac Toe</h1>
+		<table class="tblBoard">
+			<tr><td id="0"></td><td id="1"></td><td id="2"></td></tr>
+			<tr><td id="3"></td><td id="4"></td><td id="5"></td></tr>
+			<tr><td id="6"></td><td id="7"></td><td id="8"></td></tr>
+		</table>
+		<input type="button" value="Clear Board" id="btnClear" onclick="clearBoard();">		
+	</body>
+</html>
